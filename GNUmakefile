@@ -2,7 +2,7 @@
 .SUFFIXES:
 
 # Default user QEMU flags. These are appended to the QEMU command calls.
-QEMUFLAGS := -m 2G
+QEMUFLAGS := -m 2G -display gtk,zoom-to-fit=on -serial none -debugcon stdio -global isa-debugcon.iobase=0xe9
 
 override IMAGE_NAME := template
 
