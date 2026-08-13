@@ -99,3 +99,7 @@ uint64_t pmm_alloc_frame(void){
 void pmm_free_frame(uint64_t FA){
     bitmap_clear(FA/FRAME_SIZE);
 }
+
+uint64_t pmm_phys_to_virt(uint64_t phys){
+    return phys + hhdm_request.response->offset;
+}

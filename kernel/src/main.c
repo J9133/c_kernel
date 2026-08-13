@@ -227,6 +227,7 @@ void kmain(void) {
     idt_init();
     pic_remap();
     pmm_init();
+    fs_init();
     fb = fb_request.response->framebuffers[0];
 
     //char screen_buffer[fb->width/8][fb->height/8];
@@ -289,6 +290,7 @@ void kmain(void) {
             //debug_screen_buffer_small();
             command = screen_buffer[global_crus_y];
             //debug_command();
+            fs_mk_file("/hello.txt", 0);
         }
         __asm__("hlt");
     }
