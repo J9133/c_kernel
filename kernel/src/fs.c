@@ -23,6 +23,14 @@ uint64_t file_counter = 0;
 uint8_t *fs[fs_size_frames];
 uint8_t fs_table[fs_table_size_bytes];
 
+char id_to_path_path[512][32];
+uint64_t id_to_path_point = 0;
+int id_to_path_first_one = 0;
+
+char path_resolve_path_res[1024];
+char path_to_abs_path_res[1024];
+char path_to_abs_path_res_tmp[1024];
+
 // fs_bitmap
 
 #define fs_bitmap_size_bytes (fs_max_files_entrys / 8)
@@ -67,6 +75,84 @@ struct fs_file_entry *get_table_entry(){
     return NULL;
 }
 
+int id_to_path(uint64_t id, char *buffer){
+    int this_first_one = 0;
+    if (id_to_path_first_one == 0){
+        this_first_one = 1;
+        id_to_path_first_one = 1;
+        for (uint64_t i = 0; i < 512; i++){
+            for (uint64_t i2 = 0; i2 < 32; i2++){
+                id_to_path_path[i][i2] = 0x00;
+            }
+        }
+    }
+    for (uint64_t i2 = 0; i2 < fs_table_size_bytes; i2+=fs_table_entry_size_bytes){
+        struct fs_file_entry *this_entry = (struct fs_file_entry *)&fs_table[i2];
+        int stat = 0;
+        if (this_entry->id == id){
+            if (this_entry->parent_id == 0){
+                int T = 0;
+                uint64_t this_elif_lenght = 0;
+                while (T == 0){
+                    if (this_entry->name[this_elif_lenght] == '\0'){
+                        T = 1;
+                    }else{
+                        this_elif_lenght++;
+                    }    
+                }
+                for (uint64_t i = 0; i < this_elif_lenght; i++){
+                    id_to_path_path[id_to_path_point][i] = this_entry->name[i];
+                }
+                id_to_path_point++;
+                id_to_path_first_one = 0;
+                break;
+            }else{
+                int T = 0;
+                uint64_t this_elif_lenght = 0;
+                while (T == 0){
+                    if (this_entry->name[this_elif_lenght] == '\0'){
+                        this_elif_lenght++;
+                        T = 1;
+                    }else{
+                        this_elif_lenght++;
+                    }    
+                }
+                for (uint64_t i = 0; i < this_elif_lenght; i++){
+                    id_to_path_path[id_to_path_point][i] = this_entry->name[i];
+                }
+                id_to_path_point++;
+                id_to_path(this_entry->parent_id, buffer);
+            }
+        }
+    }
+    if (this_first_one == 1){
+        uint64_t here_point = 0;
+        buffer[here_point] = '/';
+        here_point++;
+        for (uint64_t i = id_to_path_point; i > 0; i--){
+            uint64_t i2_lenght = 0;
+            int Ti2 = 0;
+            while (Ti2 == 0){
+                if (id_to_path_path[i-1][i2_lenght] == '\0'){
+                    Ti2 = 1;
+                }else{
+                    i2_lenght++;
+                }
+            }
+            for (uint64_t i2 = 0; i2 < i2_lenght; i2++){
+                buffer[here_point] = id_to_path_path[i-1][i2];
+                here_point++;
+            }if (i != 1){
+                buffer[here_point] = '/';
+                here_point++;
+            }
+        }
+        buffer[here_point] = '\0';
+        id_to_path_point = 0;
+    }
+    return 0;
+}
+
 char *path_to_name(char *path){
     uint8_t T = 0;
     uint64_t counter = 0;
@@ -93,15 +179,6 @@ char *path_to_name(char *path){
 }
 
 int rel_or_abs_path(char *path){
-    //int T = 0;
-    //uint64_t path_lenght_1 = 0;
-    //while (T == 0){
-    //    if (path[path_lenght_1] == '\0'){
-    //        T = 1;
-    //    }else{
-    //        path_lenght_1++;
-    //    }
-    //}
     if(path[0] == '/'){
         return 1;
     }else{
@@ -269,15 +346,10 @@ uint64_t path_to_id(char *path, uint64_t current_dir_id){
         }else{
             return 0;
         }
-        //return fs_not_found;
     }
 
-    //uint64_t parent_id;
-    //if (rel_or_abs_path(path)){
     uint64_t parent_id = path_to_parent_id(path, current_dir_id);
-    //}else{
-    //    parent_id = current_dir_id;
-    //}
+    
     char *last_name = argvs[idx -1];
 
     for (uint64_t i2 = 0; i2 < fs_table_size_bytes; i2+=fs_table_entry_size_bytes){
@@ -288,6 +360,155 @@ uint64_t path_to_id(char *path, uint64_t current_dir_id){
         }
     }
     return fs_not_found;
+}
+
+char *path_resolve(char *path){
+    char path_buf[1024];
+    for (uint64_t ipth = 0; ipth < 1024; ipth++){path_buf[ipth] = '\0';}
+    uint64_t i0 = 0;
+    while (path[i0] != '\0' && i0 < 1023){
+        path_buf[i0] = path[i0];
+        i0++;
+    }
+    path_buf[i0] = '\0';
+    path = path_buf;
+
+    uint64_t pathTT = 0;
+    while (path[pathTT] != '\0'){
+        pathTT++;
+    }
+    if (pathTT > 1 && path[pathTT-1] == '/'){
+        path[pathTT-1] = '\0';
+    }
+
+    int64_t path_lenght = 0;
+    int while0_finish = 0;
+    while(while0_finish == 0){
+        if (path[path_lenght] == '\0'){
+            path_lenght++;
+            while0_finish = 1;
+        }else{
+            path_lenght++;
+        }
+    }
+
+    char argv[path_lenght];
+    uint64_t argc = 1;
+    for(uint64_t i = 0; i < path_lenght; i++){
+        if (path[i] == '/'){
+            argv[i] = '\0';
+            argc++;
+        }else{
+            argv[i] = path[i];
+        }
+    }
+
+    char *argvs[argc];
+    uint64_t idx = 0;
+    int new_word = 1;
+    for (uint64_t i = 0; i < path_lenght; i++){
+        if (argv[i] == '\0'){
+            new_word = 1;
+        }else{
+            if (new_word){
+                argvs[idx] = &argv[i];
+                idx++;
+                new_word = 0;
+            }
+        }
+    }
+
+    char argv_copy[path_lenght];
+    for (uint64_t i = 0; i < path_lenght; i++){
+        argv_copy[i] = argv[i];
+    }
+
+    char *argvs_copy[argc];
+    uint64_t idx2 = 0;
+    int new_word2 = 1;
+    for (uint64_t i = 0; i < path_lenght; i++){
+        if (argv_copy[i] == '\0'){
+            new_word2 = 1;
+        }else{
+            if (new_word2){
+                argvs_copy[idx2] = &argv_copy[i];
+                idx2++;
+                new_word2 = 0;
+            }
+        }
+    }
+
+    uint64_t stack_count = 0;
+    for (uint64_t i = 0; i < idx; i++){
+        if (argvs[i][0] == '.' && argvs[i][1] == '\0'){
+            continue;
+        }
+        if (argvs[i][0] == '.' && argvs[i][1] == '.' && argvs[i][2] == '\0'){
+            if (stack_count > 0){
+                stack_count--;
+            }
+            continue;
+        }
+        argvs_copy[stack_count] = argvs[i];
+        stack_count++;
+    }
+
+    for (uint64_t ipth = 0; ipth < 1024; ipth++){path_resolve_path_res[ipth] = '\0';}
+    uint64_t this_path_buffer = 1;
+    path_resolve_path_res[0] = '/';
+
+    for (uint64_t i = 0; i < stack_count; i++){
+        int T = 0;
+        uint64_t this_idi_lenght = 0;
+        while (T == 0){
+            if (argvs_copy[i][this_idi_lenght] == '\0'){
+                T = 1;
+            }else {
+                this_idi_lenght++;
+            }
+        }
+        for (uint64_t i2 = 0; i2 < this_idi_lenght; i2++){
+            path_resolve_path_res[this_path_buffer] = argvs_copy[i][i2];
+            this_path_buffer++;
+        }
+        if (i < stack_count-1){
+            path_resolve_path_res[this_path_buffer] = '/';
+            this_path_buffer++;
+        }
+    }
+
+    path_resolve_path_res[this_path_buffer] = '\0';
+    this_path_buffer++;
+
+    return path_resolve_path_res;
+}
+
+char *path_to_abs(char *path, uint64_t current_dir_id){
+    for (uint64_t ipth = 0; ipth < 1024; ipth++){ path_to_abs_path_res[ipth] = '\0'; }
+    if (rel_or_abs_path(path) == 1){
+        uint64_t i = 0;
+        while (path[i] != '\0' && i < 1023){
+            path_to_abs_path_res[i] = path[i];
+            i++;
+        }
+        path_to_abs_path_res[i] = '\0';
+        return path_to_abs_path_res;
+    }
+    id_to_path(current_dir_id, path_to_abs_path_res);
+    uint64_t this_res_point = 0;
+    while (path_to_abs_path_res[this_res_point] != '\0'){ this_res_point++; }
+    if (this_res_point == 0 || path_to_abs_path_res[this_res_point - 1] != '/'){
+        path_to_abs_path_res[this_res_point] = '/';
+        this_res_point++;
+    }
+    uint64_t i = 0;
+    while (path[i] != '\0' && this_res_point + i < 1023){
+        path_to_abs_path_res[this_res_point + i] = path[i];
+        i++;
+    }
+    path_to_abs_path_res[this_res_point + i] = '\0';
+
+    return path_to_abs_path_res;
 }
 
 int fs_mk_file(const char *path, uint64_t parent_id){
@@ -306,7 +527,7 @@ int fs_mk_file(const char *path, uint64_t parent_id){
     }
     if (rel_or_abs_path(path) == 0){
         entry->parent_id = parent_id;
-    }else{    
+    }else{
         entry->parent_id = target_id;
     }
     entry->size = 1;
@@ -406,11 +627,6 @@ int fs_ls_dir(const char *path, char *buffer, uint64_t max_size, uint64_t curren
         }
     }
 
-    //for(uint64_t i = 0; i < max_size; i++){  
-    //    if (output[i] == '\0'){break;}
-    //    buffer[i] = output[i];
-    //}
-    
     return 0;
 }
 
@@ -516,5 +732,5 @@ void fs_init(void){
     for (uint64_t i = 0; i < fs_bitmap_size_bytes; i++){
         fs_bitmap[i] = 0x00;
     }
-    bitmap_set(fs_bitmap, 0);
+    bitmap_set(fs_bitmap, 0); 
 }
