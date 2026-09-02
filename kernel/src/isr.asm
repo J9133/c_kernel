@@ -90,6 +90,56 @@ ISR_NOERR 30
 ISR_NOERR 31
 
 extern irq_handler
+extern schedule
+
+; ⬇️ irq0 اليدوية (خاصة، بتعمل context switch)
+global irq0
+irq0:
+    ;push rax
+    ;mov al, 'T'
+    ;out 0xE9, al
+    ;pop rax
+    
+    push qword 0
+    push qword 32
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, rsp
+    call schedule
+    mov rsp, rax
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    add rsp, 16
+    iretq
 
 %macro IRQ 2
 global irq%1
@@ -138,7 +188,7 @@ irq_common:
     add rsp, 16
     iretq
 
-IRQ 0, 32
+; ⬇️ IRQ 0 اتشالت من هون (موجودة يدوياً فوق)
 IRQ 1, 33
 IRQ 2, 34
 IRQ 3, 35
@@ -154,3 +204,26 @@ IRQ 12, 44
 IRQ 13, 45
 IRQ 14, 46
 IRQ 15, 47
+
+global jump_to_task
+jump_to_task:
+    mov rsp, rdi
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    add rsp, 16
+    iretq

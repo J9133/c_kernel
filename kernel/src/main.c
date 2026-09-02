@@ -11,6 +11,8 @@
 #include "fs.h"
 #include "somthings.h"
 #include "messages.h"
+#include "pit.h"
+#include "task.h"
 #define MAX_COLS 256
 #define MAX_ROWS 128
 #define FRAME_SIZE 4096
@@ -22,7 +24,6 @@ uint64_t screen_rows;
 
 uint64_t screen_width;
 uint64_t screen_height;
-
 
 uint64_t global_defualt_crus_x = 0;
 uint64_t global_crus_x = 0;
@@ -39,26 +40,22 @@ uint64_t command_point_c_main = 0;
 
 uint8_t *read_out;
 
-struct task {
-    uint64_t rsp;
-};
-
 extern void context_switch(uint64_t *old_rsp_ptr, uint64_t new_rsp);
-
-uint8_t stack_a[16777216];
-uint8_t stack_b[16777216];
-struct task task_a, task_b;
-struct task *current_task;
 
 uint64_t main_not_found = 0-1;
 
 // shell {
+
+uint32_t color_ar[3] = {0xFFFFFFFF, 0xFF0000FF, '\0'};
+uint32_t color_ar_error[3] = {0xFFFF0000, 0xFF0000FF, '\0'};
 
 int max_lenght_command_f1 = 32;
 
 uint64_t last_global_command_lenght;
 
 uint64_t current_dir_id;
+
+uint64_t task_b_counter = 0;
 
 // shell }
 
@@ -77,14 +74,15 @@ static volatile uint64_t limine_requests_start_marker[] = LIMINE_REQUESTS_START_
 __attribute__((used, section(".limine_requests_end")))
 static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARKER;
 
-__attribute__((aligned(16))) uint8_t stack_a[16777216];
-__attribute__((aligned(16))) uint8_t stack_b[16777216];
+//__attribute__((aligned(16))) uint8_t stack_a[16777216];
+//__attribute__((aligned(16))) uint8_t stack_b[16777216];
 
 extern void asm_main(uint64_t fb_addr, uint64_t pitch, uint64_t width, uint64_t height);
 
 void plus_gc_y(struct limine_framebuffer *fb, uint32_t color, uint32_t color_none);
 void scroll_screen(struct limine_framebuffer *fb, uint32_t color, uint32_t color_none);
 int shell_command(const char *test_cmd);
+void recal_clt(void);
 
 void put_pixel(struct limine_framebuffer *fb, uint64_t x, uint64_t y, uint32_t color){
     uint32_t *start_screen = (uint32_t *)fb->address;
@@ -308,7 +306,56 @@ uint64_t str_to_u64(const char *str) {
     return result;
 }
 
+char *u64_to_str(uint64_t num) {
+    static char str[21];
+    char temp[21];
+    int i = 0;
+    int j = 0;
+
+    if (num == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+        return str;
+    }
+
+    while (num > 0) {
+        temp[i] = (num % 10) + '0';
+        num /= 10;
+        i++;
+    }
+
+    while (i > 0) {
+        str[j] = temp[i - 1];
+        i--;
+        j++;
+    }
+
+    str[j] = '\0';
+    return str;
+}
+
 // shell {
+
+void re_drw_screen(void){
+
+    global_defualt_crus_x = 0;
+    global_crus_x = 0;
+    global_crus_y = 0;
+    global_last_crus_x = 0;
+    global_last_crus_y = 0;
+
+    for (uint64_t yF = 0; yF < screen_rows; yF++){
+        for (uint64_t xF = 0; xF < screen_cols; xF++){
+            write(fb, xF, yF, color_ar[0], color_ar[1], " ");
+            screen_buffer[yF][xF] = 0x00;
+        }
+    }
+
+    recal_clt();
+    global_crus_x = global_defualt_crus_x;
+    global_crus_y;
+    write(fb, 0, global_crus_y-1, color_ar[0], color_ar[1], cmd_line_text);
+}
 
 int enter(){
     int got_all_f = 0;
@@ -365,7 +412,6 @@ int enter(){
         if (idx == 1){
             this_stat = fs_ls_dir(".", read_out, FRAME_SIZE, current_dir_id);
         }else{
-            debug_print(path_resolve(path_to_abs(argvs[1], current_dir_id)));
             this_stat = fs_ls_dir(path_resolve(path_to_abs(argvs[1], current_dir_id)), read_out, FRAME_SIZE, current_dir_id);
         }
         if (this_stat == 1){
@@ -479,7 +525,7 @@ int enter(){
     }
     else if (fs_strcmp(argvs[0], "sw", command_lenght)){
         int this_stat = 0;
-        write(fb, str_to_u64(argvs[1]), str_to_u64(argvs[2]), 0x00000000, 0xFFFFFFFF, " ");
+        write(fb, str_to_u64(argvs[1]), str_to_u64(argvs[2]), color_ar[1], color_ar[0], " ");
         if (this_stat == 1){
             for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
             fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
@@ -527,6 +573,10 @@ int enter(){
         }
         return 2;
     }
+    else if (fs_strcmp(argvs[0], "clear", command_lenght)){
+        re_drw_screen();
+        return 0;
+    }
 
     
     for(uint64_t i = 0; i < max_command_lenght_bytes; i++){
@@ -557,8 +607,8 @@ int shell_command(const char *test_cmd){
     
     int enter_output = enter();
 
-    uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
-    uint32_t color_ar_error[3] = {0xFFFF0000, 0x0000000, '\0'};
+    //uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
+    //uint32_t color_ar_error[3] = {0xFFFF0000, 0x0000000, '\0'};
 
     if (enter_output == 2 || enter_output == 3){
         if (enter_output == 2){
@@ -622,8 +672,8 @@ void shell(void){
     uint64_t x = 1;
     uint64_t y = 1;
     uint32_t color = 0xFFFFFFFF;
-    uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
-    uint32_t color_ar_error[3] = {0xFFFF0000, 0x0000000, '\0'};
+    //uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
+    //uint32_t color_ar_error[3] = {0xFFFF0000, 0x0000000, '\0'};
 
     int shell_T = 0;
 
@@ -658,11 +708,11 @@ void shell(void){
                     global_crus_x = global_defualt_crus_x;
                     write(fb, 0, global_crus_y, color_ar[0], color_ar[1], cmd_line_text);
                 }else{
+                    global_crus_x = global_defualt_crus_x;
                     write(fb, 0, global_crus_y, color_ar[0], color_ar[1], cmd_line_text);
                 }
                 put_crus(fb, color_ar[0], color_ar[1]);
 
-                shell_command("sh border.sh");
                 shell_T = 1;
                 continue;
             }else if (str[0] == '\b'){
@@ -697,68 +747,78 @@ void shell(void){
 // shell }
 
 void task_create(struct task *t, uint8_t *stack, uint64_t stack_size, void (*entry)(void)){
-    uint64_t *sp = (uint64_t *)(stack + stack_size);
+    uint64_t *stack_top = (uint64_t *)(stack + stack_size);
+    stack_top = (uint64_t *)((uint64_t)stack_top & ~0xFULL);
 
-    sp = (uint64_t *)((uint64_t)sp & ~0xFULL);
-    sp = (uint64_t *)((uint64_t)sp - 8);
-    *(--sp) = (uint64_t)entry;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
+    uint64_t *sp = stack_top;
+
+    *(--sp) = 0x00;
+    *(--sp) = (uint64_t)stack_top;
+    *(--sp) = 0x202;                 // RFLAGS (IF=1)
+    *(--sp) = 0x08;                  // CS
+    *(--sp) = (uint64_t)entry;       // RIP
+
+    *(--sp) = 0;  // error code
+    *(--sp) = 32; // int_num
+
+    *(--sp) = 0; // rax
+    *(--sp) = 0; // rbx
+    *(--sp) = 0; // rcx
+    *(--sp) = 0; // rdx
+    *(--sp) = 0; // rsi
+    *(--sp) = 0; // rdi
+    *(--sp) = 0; // rbp
+    *(--sp) = 0; // r8
+    *(--sp) = 0; // r9
+    *(--sp) = 0; // r10
+    *(--sp) = 0; // r11
+    *(--sp) = 0; // r12
+    *(--sp) = 0; // r13
+    *(--sp) = 0; // r14
+    *(--sp) = 0; // r15
+
     t->rsp = (uint64_t)sp;
-}
-void task_a_func(void){
-    for(int i = 0; i < 5; i++){
-        debug_putc('A');
-    }
-    for(;;){
-        debug_putc('A1');
-        shell();
-        current_task = &task_b;
-        debug_putc('A2');
-        context_switch(&task_a.rsp, task_b.rsp);
-        __asm__ volatile ("hlt");
-    }
+    t->active = 1;
 }
 
-void task_b_func(void){
+//#define max_tasks 16
 
-    uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
-    for(int i = 0; i < 5; i++){
-        debug_putc('B');
-    }
-    for(;;){
-        uint64_t this_crus_x_b = global_crus_x;
-        global_crus_x = global_crus_x*2;
+struct task tasks[max_tasks];
+uint8_t task_stacks[max_tasks][16777216];
 
-        write(fb, global_crus_x, global_crus_y, color_ar[0], color_ar[1], cmd_line_text);
-        debug_putc('B1');
-        shell();
-        global_crus_x = this_crus_x_b;
-        current_task = &task_a;
-        debug_putc('B2');
-        context_switch(&task_b.rsp, task_a.rsp);
-        __asm__ volatile ("hlt");
+uint64_t task_count = 0;
+uint64_t current_task_id = 0;
+
+void creat_task(void (*entry)(void)){
+    if (task_count >= max_tasks){
+        return;
     }
+
+    task_create(
+        &tasks[task_count],
+        task_stacks[task_count],
+        sizeof(task_stacks[task_count]),
+        entry
+    );
+
+    task_count++;
 }
-
 
 void test_task_a(void){
     for(;;){
-        debug_putc('A');
         shell();
-        context_switch(&task_a.rsp, task_b.rsp);
+        __asm__ volatile ("hlt");
     }
 }
 
 void test_task_b(void){
     for(;;){
-        debug_putc('B');
-        shell();
-        context_switch(&task_b.rsp, task_a.rsp);
+        while (1==1){
+            write(fb, 40, 0, color_ar[0], color_ar[1], u64_to_str(task_b_counter));
+            sleep_ms(100);
+            task_b_counter++;
+        }
+        __asm__ volatile ("hlt");
     }
 }
 
@@ -776,7 +836,7 @@ void kmain(void) {
     uint64_t x = 1;
     uint64_t y = 1;
     uint32_t color = 0xFFFFFFFF;
-    uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
+    //uint32_t color_ar[3] = {0xFFFFFFFF, 0x0000000, '\0'};
     
     screen_cols = (fb->width / 8);
     screen_rows = (fb->height /8);
@@ -790,15 +850,17 @@ void kmain(void) {
         read_out[i] = 0x00;
     }
 
-    __asm__ volatile ("sti");
-
     uint64_t cursor_x = 1;
     uint64_t cursor_y = 1;
 
-    //cmd_line_text = "hi> ";
+    for (uint64_t yF = 0; yF < screen_rows; yF++){
+        for (uint64_t xF = 0; xF < screen_cols; xF++){
+            write(fb, xF, yF, color_ar[0], color_ar[1], " ");
+        }
+    }
+
     recal_clt();
     global_crus_x = global_defualt_crus_x;
-    uint8_t test_buffer[10];
     write(fb, 0, global_crus_y, color_ar[0], color_ar[1], cmd_line_text);
 
     shell_command("mk /file31");
@@ -809,7 +871,7 @@ void kmain(void) {
     shell_command("mk /border.sh");
 
     shell_command("write border.sh sw 40 40\nsw 40 41\nsw 41 39\nsw 42 39\nsw 43 40\nsw 43 41\nsw 43 42\nsw 42 42\nsw 41 42\nsw 41 44\nsw 40 42\nsw 39 42\nsw 38 42\nsw 37 42\nsw 36 42\nsw 36 42\nsw 36 41\nsw 36 40\nsw 36 39\nsw 36 38\nsw 36 37\nsw 34 42\nsw 34 41\nsw 33 42\nsw 32 42\nsw 31 42\nsw 33 40\nsw 32 39");
-    shell_command("sh border.sh");
+    //shell_command("sh border.sh");
 
     shell_command("mkdir /home");
     shell_command("mkdir /home/jad");
@@ -829,16 +891,16 @@ void kmain(void) {
         debug_putc('\n');
     }
 
-    task_create(&task_a, stack_a, sizeof(stack_a), task_a_func);
-    task_create(&task_b, stack_b, sizeof(stack_b), task_b_func);
-
     enter();
 
-    task_create(&task_a, stack_a, sizeof(stack_a), test_task_a);
-    task_create(&task_b, stack_b, sizeof(stack_b), test_task_b);
-    
-    uint64_t dummy_rsp;
-    context_switch(&dummy_rsp, task_a.rsp);
+    creat_task(test_task_a);
+    creat_task(test_task_b);
+    current_task_id = 0;
+
+    pit_init(100);
+
+    extern void jump_to_task(uint64_t rsp);
+    jump_to_task(tasks[0].rsp);
     
     for(;;) { __asm__("hlt"); }
 

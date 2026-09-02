@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "idt.h"
 #include "pic.h"
+#include "pit.h"
 #include "keyboard.h"
 
 extern void isr0(void);
