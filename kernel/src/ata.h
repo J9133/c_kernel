@@ -7,5 +7,6 @@
 
 int ata_sector_read(uint32_t lba, uint8_t sector_count, uint8_t *buffer);
 int ata_sector_write(uint32_t lba, uint8_t sector_count, uint8_t *buffer);
+int ata_identify(uint16_t *buffer);
 
 #endif

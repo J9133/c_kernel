@@ -3,7 +3,7 @@
 #include "font8x8_basic.h"
 #include "gdt.h"
 #include "idt.h"
-//#include "pic.h"
+#include "pic.h"
 #include "io.h"
 #include "keyboard.h"
 #include "debug.h"
@@ -13,6 +13,7 @@
 #include "messages.h"
 #include "pit.h"
 #include "task.h"
+#include "ata.h"
 #define MAX_COLS 256
 #define MAX_ROWS 128
 #define FRAME_SIZE 4096
@@ -89,6 +90,7 @@ void delet_task(char *name);
 void run_task(void);
 void creat_task_path(char *run_path, char *name);
 void creat_task_func(void (*entry)(void), char *name);
+void make_the_tree(void);
 
 void put_pixel(struct limine_framebuffer *fb, uint64_t x, uint64_t y, uint32_t color){
     uint32_t *start_screen = (uint32_t *)fb->address;
@@ -775,9 +777,7 @@ int enter(const char *cmd){
         return 2;
     }
     else if (fs_strcmp(argvs[0], "input", command_lenght)){
-        debug_putc('}');
         char this_c = get_input_c();
-        debug_putc('F');
         char this_arr[2] = {this_c, '\0'};
         fs_write_file("/input/input_c", this_arr, 0);
         return 0;
@@ -993,7 +993,6 @@ void shell(void){
     while (shell_T == 0) {
         put_crus(fb, color_ar[0], color_ar[1]);
         char c;
-        debug_putc('G');
         if (read_kyboard_from_main(&c)) {
             char str[2] = {c, '\0'};
             if (str[0] == '\n'){
@@ -1163,36 +1162,6 @@ void creat_task_func(void (*entry)(void), char *name){
     task_count++;
 }
 
-//void creat_task(char *run_path, char *name){
-//    if (task_count >= max_tasks){
-//        return;
-//    }
-//
-//    int ou = 0;
-//    for (uint64_t i = 0; i < 32; i++){
-//        if (ou == 0){
-//            tasks[task_count].name[i] = name[i];
-//        }
-//        if (name[i] == '\0'){ou = 1;}
-//    }
-//
-//    int i = 0;
-//    while (run_path[i] != '\0' && i < 1023){
-//        tasks[task_count].run_path[i] = run_path[i];
-//        i++;
-//    }
-//    tasks[task_count].run_path[i] = '\0';
-//
-//    task_create(
-//        &tasks[task_count],
-//        task_stacks[task_count],
-//        sizeof(task_stacks[task_count]),
-//        run_task
-//    );
-//
-//    task_count++;
-//}
-
 void delet_task(char *name){
     if (task_count >= max_tasks){
         return;
@@ -1233,7 +1202,7 @@ void delet_task(char *name){
 }
 
 
-void make_the_tree(void){
+void make_the_tree(void){    
     // make the root folders
     shell_command("mkdir /home");
     shell_command("mkdir /var");
@@ -1258,8 +1227,9 @@ void make_the_tree(void){
     shell_command("mk /tmp/input/input_c");
     shell_command("mk /var/rand");
     shell_command("mk /var/rand_2");
-    shell_command("rand i");
     
+    shell_command("rand i");
+
     return;
 }
 
@@ -1318,18 +1288,69 @@ void run_task(void){
 }
 
 char path_174[1024];
+void test_ata_rw(void){
+    uint8_t write_buf[ata_sector_size];
+    uint8_t read_buf[ata_sector_size];
 
+    // باترن معروف وسهل التمييز: 0,1,2,...,255,0,1,2...
+    for (uint64_t i = 0; i < ata_sector_size; i++){
+        write_buf[i] = (uint8_t)(i & 0xFF);
+    }
+
+    // امسح buffer القراءة تحسبًا (تأكد إنه فعلاً انكتب من القرص، مش قيم قديمة بالذاكرة)
+    for (uint64_t i = 0; i < ata_sector_size; i++){
+        read_buf[i] = 0xFF;
+    }
+
+    uint32_t test_lba = 100; // أي LBA بعيد عن أي بيانات مهمة عندك حاليًا
+
+    int wr = ata_sector_write(test_lba, 1, write_buf);
+    debug_print("write result: ");
+    debug_put64((uint64_t)wr);
+    debug_putc('\n');
+
+    int rd = ata_sector_read(test_lba, 1, read_buf);
+    debug_print("read result: ");
+    debug_put64((uint64_t)rd);
+    debug_putc('\n');
+
+    int ok = 1;
+    for (uint64_t i = 0; i < ata_sector_size; i++){
+        if (write_buf[i] != read_buf[i]){
+            ok = 0;
+            debug_print("MISMATCH at byte ");
+            debug_put64(i);
+            debug_print(": wrote ");
+            debug_put64((uint64_t)write_buf[i]);
+            debug_print(" got ");
+            debug_put64((uint64_t)read_buf[i]);
+            debug_putc('\n');
+        }
+    }
+
+    if (ok){
+        debug_print("ATA READ/WRITE TEST: PASSED\n");
+    } else {
+        debug_print("ATA READ/WRITE TEST: FAILED\n");
+    }
+}
 void kmain(void) {
     gdt_init();
     idt_init();
+    pic_remap(); 
     pmm_init();
     fs_init();
+
     fb = fb_request.response->framebuffers[0];
 
     recal_clt();
     uint64_t x = 1;
     uint64_t y = 1;
     uint32_t color = 0xFFFFFFFF;
+    
+    uint16_t himm[256];
+    int sso = ata_identify(himm);
+    test_ata_rw();
     
     screen_cols = (fb->width / 8);
     screen_rows = (fb->height /8);
@@ -1368,9 +1389,9 @@ void kmain(void) {
 
     enter(command);
 
-    //creat_task(test_task_a, "task_a");
-    //creat_task(test_task_b, "task_b");
-    //creat_task(test_task_i, "task_i");
+    //creat_task_func(test_task_a, "task_a");
+    //creat_task_func(test_task_b, "task_b");
+    //creat_task_func(test_task_i, "task_i");
     creat_task_func(test_task_normal_shell, "shell");
     current_task_id = 0;
 

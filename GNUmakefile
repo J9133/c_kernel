@@ -51,20 +51,11 @@ run-hdd-uefi: edk2-ovmf-bins $(IMAGE_NAME).hdd
 		-hda $(IMAGE_NAME).hdd \
 		$(QEMUFLAGS)
 
-.PHONY: run-disk
-run-disk: $(IMAGE_NAME).iso disk.img
-	qemu-system-x86_64 \
-		-M q35 \
-		-cdrom $(IMAGE_NAME).iso \
-		-boot d \
-		-drive if=none,id=disk0,file=disk.img,format=raw \
-		-device virtio-blk-pci,drive=disk0 \
-		$(QEMUFLAGS)
 
 .PHONY: run-ata
 run-ata: $(IMAGE_NAME).iso disk.img
 	qemu-system-x86_64 \
-		-M q35 \
+		-M pc \
 		-cdrom $(IMAGE_NAME).iso \
 		-boot d \
 		-drive if=ide,file=disk.img,format=raw \

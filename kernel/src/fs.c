@@ -5,6 +5,7 @@
 #include "pmm.h"
 #include "debug.h"
 #include "somthings.h"
+#include "ata.h"
 
 #define frame_size_bytes 4096
 
