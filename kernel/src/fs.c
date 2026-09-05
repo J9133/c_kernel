@@ -69,7 +69,6 @@ struct fs_file_entry *get_table_entry(){
             bitmap_set(fs_bitmap, i);
             entry_index = i;
             return (struct fs_file_entry *)(fs_table + entry_index * fs_table_entry_size_bytes);
-            break;
         }
     }
     return NULL;

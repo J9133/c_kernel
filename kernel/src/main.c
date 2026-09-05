@@ -3,7 +3,7 @@
 #include "font8x8_basic.h"
 #include "gdt.h"
 #include "idt.h"
-#include "pic.h"
+//#include "pic.h"
 #include "io.h"
 #include "keyboard.h"
 #include "debug.h"
@@ -43,6 +43,7 @@ uint8_t *read_out;
 extern void context_switch(uint64_t *old_rsp_ptr, uint64_t new_rsp);
 
 uint64_t main_not_found = 0-1;
+uint64_t rng_state = 88172645463325252ULL;
 
 // shell {
 
@@ -84,6 +85,10 @@ void plus_gc_y(struct limine_framebuffer *fb, uint32_t color, uint32_t color_non
 void scroll_screen(struct limine_framebuffer *fb, uint32_t color, uint32_t color_none);
 int shell_command(const char *test_cmd);
 void recal_clt(void);
+void delet_task(char *name);
+void run_task(void);
+void creat_task_path(char *run_path, char *name);
+void creat_task_func(void (*entry)(void), char *name);
 
 void put_pixel(struct limine_framebuffer *fb, uint64_t x, uint64_t y, uint32_t color){
     uint32_t *start_screen = (uint32_t *)fb->address;
@@ -284,6 +289,19 @@ uint64_t str_to_u64(const char *str) {
     return result;
 }
 
+
+int is_valid_number(const char *str){
+    if (str[0] == '\0'){
+        return 0;
+    }
+    for (uint64_t i = 0; str[i] != '\0'; i++){
+        if (str[i] < '0' || str[i] > '9'){
+            return 0;
+        }
+    }
+    return 1;
+}
+
 char *u64_to_str(uint64_t num) {
     static char str[21];
     char temp[21];
@@ -333,6 +351,13 @@ char *str_concat(const char *s1, const char *s2){
 
     out[j] = '\0';
     return out;
+}
+
+uint64_t simple_rand(void){
+    rng_state ^= rng_state << 13;
+    rng_state ^= rng_state >> 7;
+    rng_state ^= rng_state << 17;
+    return rng_state;
 }
 
 // shell {
@@ -419,7 +444,6 @@ int enter(const char *cmd){
     if (idx == 0){
         return 0;
     }
-
     if (fs_strcmp(argvs[0], "ls", command_lenght)){
         for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
         int this_stat = 0;
@@ -485,6 +509,40 @@ int enter(const char *cmd){
             return 3;
         }
         return 0;
+    }else if (fs_strcmp(argvs[0], "wadd", command_lenght)){
+        int this_stat = 0;
+        if (argc < 3){
+            return 1;
+        }
+        char *content_start = argvs[2];
+        uint64_t content_len = command_lenght - (content_start - argv);
+
+        for (uint64_t i = 0; i < content_len - 1; i++){
+            if (content_start[i] == '\0'){
+                content_start[i] = ' ';
+            }
+        }
+        
+        char this_file_read[FRAME_SIZE];
+        for (uint64_t ipth = 0; ipth < 1024; ipth++){this_file_read[ipth] = '\0';}
+        fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_file_read, FRAME_SIZE);
+        int T = 0;
+        uint64_t this_file_read_poitn = 0;
+        while (T == 0){
+            if(this_file_read[this_file_read_poitn] == '\0'){
+                T = 1;
+            }else{
+                this_file_read_poitn++;
+            }
+        }
+
+        this_stat = fs_write_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), str_concat(str_concat(this_file_read, content_start), "\n"), 0);
+        if (this_stat == 1){
+            for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
+            fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
+            return 3;
+        }
+        return 0;
     }
     else if (fs_strcmp(argvs[0], "cd", command_lenght)){
         uint64_t last_cdd = current_dir_id;
@@ -539,7 +597,29 @@ int enter(const char *cmd){
     }
     else if (fs_strcmp(argvs[0], "sw", command_lenght)){
         int this_stat = 0;
-        write(fb, str_to_u64(argvs[1]), str_to_u64(argvs[2]), color_ar[1], color_ar[0], " ");
+        int this_f = 0;
+        if (idx > 3){
+            if (fs_strcmp(argvs[3], "f", 1)){
+                this_f = 1;
+            }
+        }
+        if (this_f == 0){
+            write(fb, str_to_u64(argvs[1]), str_to_u64(argvs[2]), color_ar[1], color_ar[0], " ");
+        }else{
+            int this_stat1 = 0;
+            int this_stat2 = 0;
+            uint64_t this_if_enter_cheak_size = 4;
+            uint8_t this_if_enter_buffer_1[this_if_enter_cheak_size];
+            uint8_t this_if_enter_buffer_2[this_if_enter_cheak_size];
+            for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
+            for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
+            this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size);
+            this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size);
+            if (this_stat1 == 1 || this_stat2 == 1){
+                return 1;
+            }
+            write(fb, str_to_u64(this_if_enter_buffer_1), str_to_u64(this_if_enter_buffer_2), color_ar[1], color_ar[0], " ");
+        }
         if (this_stat == 1){
             for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
             fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
@@ -597,8 +677,8 @@ int enter(const char *cmd){
         uint64_t this_if_enter_cheak_size = 1024;
         uint8_t this_if_enter_buffer_1[this_if_enter_cheak_size];
         uint8_t this_if_enter_buffer_2[this_if_enter_cheak_size];
-            for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
-            for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
+        for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
+        for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
         this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size);
         this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size);
         if (this_stat1 == 1 || this_stat2 == 1){
@@ -695,7 +775,9 @@ int enter(const char *cmd){
         return 2;
     }
     else if (fs_strcmp(argvs[0], "input", command_lenght)){
+        debug_putc('}');
         char this_c = get_input_c();
+        debug_putc('F');
         char this_arr[2] = {this_c, '\0'};
         fs_write_file("/input/input_c", this_arr, 0);
         return 0;
@@ -722,13 +804,124 @@ int enter(const char *cmd){
                 src++;
             }
             this_this[i2] = '\0'; 
-            debug_print(str_concat(str_concat(str_concat("write /proc/for/", argvs[3]), " "), u64_to_str(i)));
             shell_command(str_concat(str_concat(str_concat("write /proc/for/", argvs[3]), " "), u64_to_str(i)));
             shell_command(this_this);
         }
         return 0;
     }
+    else if (fs_strcmp(argvs[0], "rand", command_lenght)){
+        uint64_t rand_num = simple_rand();
+        shell_command(str_concat("write /var/rand ", u64_to_str(rand_num)));
+        if (fs_strcmp(argvs[1], "o", 1)){
+            fs_strncpy(read_out, u64_to_str(rand_num), 10);
+            return 2;
+        }else{
+            if (is_valid_number(argvs[1]) == 1){
+                shell_command(str_concat("write /var/rand_2 ", u64_to_str(rand_num % str_to_u64(argvs[1]))));
+            }
+            return 0;
+        }
+    }
+    else if (fs_strcmp(argvs[0], "task", command_lenght)){
+        for (uint64_t ipth = 0; ipth < 1024; ipth++){read_out[ipth] = '\0';}
+        if (fs_strcmp(argvs[1], "list", command_lenght)){
+            uint64_t read_out_point = 0;
+            for (uint64_t i = 0; i < task_count; i++){
+                if (tasks[i].active != 0){
+                    int T = 0;
+                    uint64_t tast_list_ro_pointer = 0;
+                    while (T == 0){
+                        if (tasks[i].name[tast_list_ro_pointer] != '\0'){
+                            read_out[read_out_point] = tasks[i].name[tast_list_ro_pointer];
+                            tast_list_ro_pointer++;
+                            read_out_point++;
+                        }else{
+                            read_out[read_out_point] = '\n';
+                            read_out_point++;
+                            T = 1;
+                        }
+                    }
+                }
+            }
+            return 2;
+        }else if (fs_strcmp(argvs[1], "del", command_lenght)){
+            char *content_start = argvs[2];
+            uint64_t content_len = command_lenght - (content_start - argv);
 
+            for (uint64_t i = 0; i < content_len - 1; i++){
+                if (content_start[i] == '\0'){
+                    content_start[i] = ' ';
+                }
+            }
+            delet_task(content_start);
+        }else if (fs_strcmp(argvs[1], "create", command_lenght)){
+            creat_task_path(argvs[2], argvs[3]);
+        }
+        return 1;
+    }
+    else if (fs_strcmp(argvs[0], "se", command_lenght)){
+        int this_stat = 0;
+        int this_f = 0;
+        int this_ff = 0;
+        if (idx > 4){
+            if (fs_strcmp(argvs[4], "fi", 2)){
+                this_f = 1;
+                this_ff = 1;
+            }else if (fs_strcmp(argvs[4], "f", 1)){
+                this_f = 1;
+            }else if (fs_strcmp(argvs[4], "i", 2)){
+                this_ff = 1;
+            }
+        }
+        char argvs3_path[1024];
+
+        int T = 0;
+        uint64_t argvs3_lenght = 0;
+        while (T == 0){
+            if (argvs[3][argvs3_lenght] == '\0'){
+                T = 1;
+                argvs3_lenght++;
+            }else{
+                argvs3_lenght++;
+            }
+        }
+
+        if (this_ff == 1){
+            fs_read_file(argvs[3], argvs3_path, 0);
+        }else{
+            for (uint64_t i = 0; i < argvs3_lenght; i++){
+                argvs3_path[i] = argvs[3][i];
+            }
+        }
+
+        if (this_f == 0){
+            write(fb, str_to_u64(argvs[1]), str_to_u64(argvs[2]), color_ar[0], color_ar[1], argvs3_path);
+        }else{
+            int this_stat1 = 0;
+            int this_stat2 = 0;
+            uint64_t this_if_enter_cheak_size = 4;
+            uint8_t this_if_enter_buffer_1[this_if_enter_cheak_size];
+            uint8_t this_if_enter_buffer_2[this_if_enter_cheak_size];
+            for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
+            for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
+            this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size);
+            this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size);
+            if (this_stat1 == 1 || this_stat2 == 1){
+                return 1;
+            }
+            write(fb, str_to_u64(this_if_enter_buffer_1), str_to_u64(this_if_enter_buffer_2), color_ar[0], color_ar[1], argvs3_path);
+        }
+        if (this_stat == 1){
+            for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
+            fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
+            return 3;
+        }else if (this_stat == 2){
+            for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
+            fs_strncpy((char *)read_out, main_not_folder_message, sizeof(main_not_folder_message));
+            return 3;
+        }
+        return 0;
+    }
     return 1;
 }
 int shell_command(const char *test_cmd){
@@ -743,7 +936,7 @@ int shell_command(const char *test_cmd){
         plus_gc_y(fb, color_ar[0], color_ar[1]);
         global_crus_x = global_defualt_crus_x;
     }
-
+    
     return enter_output;
 }
 
@@ -800,6 +993,7 @@ void shell(void){
     while (shell_T == 0) {
         put_crus(fb, color_ar[0], color_ar[1]);
         char c;
+        debug_putc('G');
         if (read_kyboard_from_main(&c)) {
             char str[2] = {c, '\0'};
             if (str[0] == '\n'){
@@ -907,11 +1101,58 @@ uint8_t task_stacks[max_tasks][16777216];
 uint64_t task_count = 0;
 uint64_t current_task_id = 0;
 
-void creat_task(void (*entry)(void)){
+void task_exit(void){
+    tasks[current_task_id].active = 0;
+
+    __asm__ volatile("int $32");
+
+    for(;;){
+        __asm__ volatile("hlt");
+    }
+}
+
+static void copy_task_name(uint64_t idx, char *name){
+    int ou = 0;
+    for (uint64_t i = 0; i < 32; i++){
+        if (ou == 0){
+            tasks[idx].name[i] = name[i];
+        }
+        if (name[i] == '\0'){ou = 1;}
+    }
+}
+
+void creat_task_path(char *run_path, char *name){
     if (task_count >= max_tasks){
         return;
     }
 
+    copy_task_name(task_count, name);
+
+    int i = 0;
+    while (run_path[i] != '\0' && i < 1023){
+        tasks[task_count].run_path[i] = run_path[i];
+        i++;
+    }
+    tasks[task_count].run_path[i] = '\0';
+
+    task_create(
+        &tasks[task_count],
+        task_stacks[task_count],
+        sizeof(task_stacks[task_count]),
+        run_task
+    );
+
+    task_count++;
+}
+
+void creat_task_func(void (*entry)(void), char *name){
+    if (task_count >= max_tasks){
+        return;
+    }
+
+    copy_task_name(task_count, name);
+    tasks[task_count].run_path[0] = '\0';
+    
     task_create(
         &tasks[task_count],
         task_stacks[task_count],
@@ -921,6 +1162,76 @@ void creat_task(void (*entry)(void)){
 
     task_count++;
 }
+
+//void creat_task(char *run_path, char *name){
+//    if (task_count >= max_tasks){
+//        return;
+//    }
+//
+//    int ou = 0;
+//    for (uint64_t i = 0; i < 32; i++){
+//        if (ou == 0){
+//            tasks[task_count].name[i] = name[i];
+//        }
+//        if (name[i] == '\0'){ou = 1;}
+//    }
+//
+//    int i = 0;
+//    while (run_path[i] != '\0' && i < 1023){
+//        tasks[task_count].run_path[i] = run_path[i];
+//        i++;
+//    }
+//    tasks[task_count].run_path[i] = '\0';
+//
+//    task_create(
+//        &tasks[task_count],
+//        task_stacks[task_count],
+//        sizeof(task_stacks[task_count]),
+//        run_task
+//    );
+//
+//    task_count++;
+//}
+
+void delet_task(char *name){
+    if (task_count >= max_tasks){
+        return;
+    }
+    for (uint64_t i = 0; i < task_count; i++){
+        int T = 0;
+        uint64_t TN_lenght = 0;
+        while (T == 0){
+            if (tasks[i].name[TN_lenght] == '\0'){
+                T = 1;
+            }else{
+                TN_lenght++;
+            }
+        }
+        int T2 = 0;
+        uint64_t lenght = 0;
+        while (T2 == 0){
+            if (name[lenght] == '\0'){
+                T2 = 1;
+            }else{
+                lenght++;
+            }
+        }
+        if (TN_lenght != lenght){continue;}
+        int ou = 0;
+        for (uint64_t i2 = 0; i2 < TN_lenght; i2++){
+            if (tasks[i].name[i2] != name[i2] && ou == 0){
+                ou = 1;
+                continue;
+            }
+        }
+        if (ou == 0){
+            tasks[i].active = 0;
+            return;
+        }
+    }
+    return;
+}
+
 
 void make_the_tree(void){
     // make the root folders
@@ -932,66 +1243,76 @@ void make_the_tree(void){
     shell_command("mkdir /proc/for");
 
     // some files/folders to be the normal tree
-    shell_command("mkdir /home/jad");
-    shell_command("mk /home/jad/file1.txt");
+    shell_command("mkdir /home/user");
 
-    // test programes and files
-    shell_command("mk /file31");
-    shell_command("write file31 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100");
+    // the programes and files
 
-    shell_command("mk /border.sh");
-    shell_command("write border.sh sw 40 40\nsw 40 41\nsw 41 39\nsw 42 39\nsw 43 40\nsw 43 41\nsw 43 42\nsw 42 42\nsw 41 42\nsw 41 44\nsw 40 42\nsw 39 42\nsw 38 42\nsw 37 42\nsw 36 42\nsw 36 42\nsw 36 41\nsw 36 40\nsw 36 39\nsw 36 38\nsw 36 37\nsw 34 42\nsw 34 41\nsw 33 42\nsw 32 42\nsw 31 42\nsw 33 40\nsw 32 39");
-    
-    shell_command("mk /program1");
+    shell_command("mk /var/testfile");
 
-    shell_command("write /program1 mk /var/file9o\n"
-                 "mk /var/fileiu\n"
-                 "write /var/file9o hello worldd\n"
-                 "write /var/fileiu hello worldd\n"
-                 "if /var/file9o /var/fileiu\n"
-                 "fi echo the cond is true (fi)\n"
-                 "else echo the cond is false (else)\n");
-
-
-    shell_command("mk /pd");
-
-    shell_command("write /pd cat proc/for/jk");
+    shell_command("mk /var/this_y");
+    shell_command("write /var/this_y sw /var/rand_2 /proc/for/m2 f\nsleep 700\nrand 4");
 
     // var
 
     // env
     shell_command("mk /tmp/input/input_c");
-
+    shell_command("mk /var/rand");
+    shell_command("mk /var/rand_2");
+    shell_command("rand i");
+    
     return;
 }
 
 void test_task_a(void){
     for(;;){
-        shell();
+        //shell_command("clear");
+        shell_command("write /var/testfile input");
+        shell_command("for 100 /var/testfile mm");
+        //shell();
         __asm__ volatile ("hlt");
     }
 }
 
 void test_task_b(void){
     for(;;){
-        while (1==1){
-            write(fb, 40, 0, color_ar[0], color_ar[1], u64_to_str(task_b_counter));
-            sleep_ms(100);
-            task_b_counter++;
-        }
+        shell_command("for 100 /var/this_y m2");
+        //shell_command("sw /tmp/input/input_c /proc/for/mm f");
         __asm__ volatile ("hlt");
     }
 }
 
-uint64_t counter2_num = 0;
+void test_task_i(void){
+    for(;;){
+        shell_command("input");
+        uint32_t this_color_tmp = color_ar[0];
+        color_ar[0] = 0xFFFF0000;
+        shell_command("if /tmp/input/input_c /var/rand_2");
+        shell_command("else sw /var/rand_2 /proc/for/m2 f");
+        color_ar[0] = this_color_tmp;
+        //shell_command("else cat /var/rand_2");
+        __asm__ volatile ("hlt");
+    }
+}
 
-void counter2(void){
-    for (;;){
-        while (1==1){
-            write(fb, 20, 0, color_ar[0], color_ar[1], u64_to_str(counter2_num));
-            sleep_ms(1000);
-            counter2_num++;
-        }
+void test_task_normal_shell(void){
+    for(;;){
+        shell();
+        __asm__ volatile ("hlt");
+    }
+}
+
+void test_task_counter(void){
+    for(;;){
+        write(fb, 40, 0, color_ar[0], color_ar[1], u64_to_str(task_b_counter));
+        sleep_ms(500);
+        task_b_counter++;
+        __asm__ volatile ("hlt");
+    }
+}
+
+void run_task(void){
+    for(;;){
+        shell_command(str_concat("sh ", tasks[current_task_id].run_path));
         __asm__ volatile ("hlt");
     }
 }
@@ -1001,7 +1322,6 @@ char path_174[1024];
 void kmain(void) {
     gdt_init();
     idt_init();
-    pic_remap();
     pmm_init();
     fs_init();
     fb = fb_request.response->framebuffers[0];
@@ -1048,9 +1368,10 @@ void kmain(void) {
 
     enter(command);
 
-    creat_task(test_task_a);
-    creat_task(test_task_b);
-    creat_task(counter2);
+    //creat_task(test_task_a, "task_a");
+    //creat_task(test_task_b, "task_b");
+    //creat_task(test_task_i, "task_i");
+    creat_task_func(test_task_normal_shell, "shell");
     current_task_id = 0;
 
     pit_init(100);

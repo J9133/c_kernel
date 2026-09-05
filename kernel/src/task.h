@@ -7,6 +7,8 @@
 struct task {
     uint64_t rsp;
     uint64_t active;
+    char name[32];
+    char run_path[1024];
 };
 
 extern struct task tasks[max_tasks];
