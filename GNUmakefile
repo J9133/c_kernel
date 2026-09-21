@@ -62,7 +62,7 @@ run-ata: $(IMAGE_NAME).iso disk.img
 		$(QEMUFLAGS)
 
 disk.img:
-	qemu-img create -f raw disk.img 64M
+	qemu-img create -f raw disk.img 1024M
 	
 edk2-ovmf-bins:
 	curl -L https://github.com/osdev0/edk2-ovmf-stable-bins/releases/latest/download/edk2-ovmf-bins.tar.gz | gunzip | tar -xf -

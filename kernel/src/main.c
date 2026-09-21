@@ -484,7 +484,7 @@ int enter(const char *cmd){
     else if (fs_strcmp(argvs[0], "cat", command_lenght)){
         int this_stat = 0;
         for (uint64_t i = 0; i < FRAME_SIZE; i++) {read_out[i] = 0x00;}
-        this_stat = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), read_out, 0);
+        this_stat = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), read_out, 0, current_dir_id);
         if (this_stat == 1){
             for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
             fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
@@ -504,7 +504,7 @@ int enter(const char *cmd){
                 content_start[i] = ' ';
             }
         }
-        this_stat = fs_write_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), content_start, 0);
+        this_stat = fs_write_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), content_start, 0, current_dir_id);
         if (this_stat == 1){
             for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
             fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
@@ -527,7 +527,7 @@ int enter(const char *cmd){
         
         char this_file_read[FRAME_SIZE];
         for (uint64_t ipth = 0; ipth < 1024; ipth++){this_file_read[ipth] = '\0';}
-        fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_file_read, FRAME_SIZE);
+        fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_file_read, FRAME_SIZE, current_dir_id);
         int T = 0;
         uint64_t this_file_read_poitn = 0;
         while (T == 0){
@@ -538,7 +538,7 @@ int enter(const char *cmd){
             }
         }
 
-        this_stat = fs_write_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), str_concat(str_concat(this_file_read, content_start), "\n"), 0);
+        this_stat = fs_write_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), str_concat(str_concat(this_file_read, content_start), "\n"), 0, current_dir_id);
         if (this_stat == 1){
             for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
             fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
@@ -548,8 +548,11 @@ int enter(const char *cmd){
     }
     else if (fs_strcmp(argvs[0], "cd", command_lenght)){
         uint64_t last_cdd = current_dir_id;
+        debug_print(path_resolve(path_to_abs(argvs[1], current_dir_id)));
+        debug_put64(path_to_id(path_resolve(path_to_abs(argvs[1], current_dir_id)), current_dir_id));
         current_dir_id = path_to_id(path_resolve(path_to_abs(argvs[1], current_dir_id)), current_dir_id);
         if (current_dir_id == main_not_found){
+            debug_print("fijufj");
             current_dir_id = last_cdd;
             return 3;
         }
@@ -615,8 +618,8 @@ int enter(const char *cmd){
             uint8_t this_if_enter_buffer_2[this_if_enter_cheak_size];
             for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
             for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
-            this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size);
-            this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size);
+            this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size, current_dir_id);
+            this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size, current_dir_id);
             if (this_stat1 == 1 || this_stat2 == 1){
                 return 1;
             }
@@ -637,7 +640,7 @@ int enter(const char *cmd){
         int this_stat = 0;
         char this_read_out[1024];
         for (uint64_t ipth = 0; ipth < 1024; ipth++){this_read_out[ipth] = '\0';}
-        fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_read_out, 0);
+        fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_read_out, 0, current_dir_id);
         char sh_command[1024];
         for (uint64_t ipth = 0; ipth < 1024; ipth++){sh_command[ipth] = '\0';}
         uint64_t i2 = 0;
@@ -681,8 +684,8 @@ int enter(const char *cmd){
         uint8_t this_if_enter_buffer_2[this_if_enter_cheak_size];
         for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
         for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
-        this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size);
-        this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size);
+        this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size, current_dir_id);
+        this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size, current_dir_id);
         if (this_stat1 == 1 || this_stat2 == 1){
             for (uint64_t i = 0; i < FRAME_SIZE; i++) read_out[i] = 0x00;
             fs_strncpy((char *)read_out, fs_not_found_message, sizeof(fs_not_found_message));
@@ -779,7 +782,7 @@ int enter(const char *cmd){
     else if (fs_strcmp(argvs[0], "input", command_lenght)){
         char this_c = get_input_c();
         char this_arr[2] = {this_c, '\0'};
-        fs_write_file("/input/input_c", this_arr, 0);
+        fs_write_file("/input/input_c", this_arr, 0, current_dir_id);
         return 0;
     }
     else if (fs_strcmp(argvs[0], "sleep", command_lenght)){
@@ -887,7 +890,7 @@ int enter(const char *cmd){
         }
 
         if (this_ff == 1){
-            fs_read_file(argvs[3], argvs3_path, 0);
+            fs_read_file(argvs[3], argvs3_path, 0, current_dir_id);
         }else{
             for (uint64_t i = 0; i < argvs3_lenght; i++){
                 argvs3_path[i] = argvs[3][i];
@@ -904,8 +907,8 @@ int enter(const char *cmd){
             uint8_t this_if_enter_buffer_2[this_if_enter_cheak_size];
             for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_1[i] = 0x00;
             for (uint64_t i = 0; i < this_if_enter_cheak_size; i++) this_if_enter_buffer_2[i] = 0x00;
-            this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size);
-            this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size);
+            this_stat1 = fs_read_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), this_if_enter_buffer_1, this_if_enter_cheak_size, current_dir_id);
+            this_stat2 = fs_read_file(path_resolve(path_to_abs(argvs[2], current_dir_id)), this_if_enter_buffer_2, this_if_enter_cheak_size, current_dir_id);
             if (this_stat1 == 1 || this_stat2 == 1){
                 return 1;
             }
@@ -920,6 +923,21 @@ int enter(const char *cmd){
             fs_strncpy((char *)read_out, main_not_folder_message, sizeof(main_not_folder_message));
             return 3;
         }
+        return 0;
+    }
+    else if (fs_strcmp(argvs[0], "math", command_lenght)){
+        int this_stat = 0;
+        uint64_t this_res = 0;
+        uint64_t par1 = str_to_u64(argvs[2]);
+        char *par2 = argvs[3];
+        uint64_t par3 = str_to_u64(argvs[4]);
+        if      (par2[0] == '+' && par2[1] == '\0'){this_res = par1 + par3;}
+        else if (par2[0] == '-' && par2[1] == '\0'){this_res = par1 - par3;}
+        else if (par2[0] == '/' && par2[1] == '\0'){this_res = par1 / par3;}
+        else if (par2[0] == '*' && par2[1] == '\0'){this_res = par1 * par3;}
+        else if (par2[0] == 'c' && par2[1] == '\0'){if (par1 > par3){this_res = 2;};else if (par1 == par3){this_res = 1;};else if (par1 < par3){this_res = 0;};}
+        else{return 4;}
+        this_stat = fs_write_file(path_resolve(path_to_abs(argvs[1], current_dir_id)), u64_to_str(this_res), 8, current_dir_id);
         return 0;
     }
     return 1;
@@ -1212,14 +1230,7 @@ void make_the_tree(void){
     shell_command("mkdir /proc/for");
 
     // some files/folders to be the normal tree
-    shell_command("mkdir /home/user");
-
-    // the programes and files
-
-    shell_command("mk /var/testfile");
-
-    shell_command("mk /var/this_y");
-    shell_command("write /var/this_y sw /var/rand_2 /proc/for/m2 f\nsleep 700\nrand 4");
+    shell_command("mkdir /home/jad");
 
     // var
 
@@ -1233,35 +1244,11 @@ void make_the_tree(void){
     return;
 }
 
-void test_task_a(void){
-    for(;;){
-        //shell_command("clear");
-        shell_command("write /var/testfile input");
-        shell_command("for 100 /var/testfile mm");
-        //shell();
-        __asm__ volatile ("hlt");
-    }
-}
 
-void test_task_b(void){
-    for(;;){
-        shell_command("for 100 /var/this_y m2");
-        //shell_command("sw /tmp/input/input_c /proc/for/mm f");
-        __asm__ volatile ("hlt");
-    }
-}
-
-void test_task_i(void){
-    for(;;){
-        shell_command("input");
-        uint32_t this_color_tmp = color_ar[0];
-        color_ar[0] = 0xFFFF0000;
-        shell_command("if /tmp/input/input_c /var/rand_2");
-        shell_command("else sw /var/rand_2 /proc/for/m2 f");
-        color_ar[0] = this_color_tmp;
-        //shell_command("else cat /var/rand_2");
-        __asm__ volatile ("hlt");
-    }
+void boot_commands(void){
+    shell_command("mk /tmp/rand");
+    shell_command("write /tmp/rand rand 3");
+    shell_command("task creat /tmp/rand rand1");
 }
 
 void test_task_normal_shell(void){
@@ -1288,58 +1275,29 @@ void run_task(void){
 }
 
 char path_174[1024];
-void test_ata_rw(void){
-    uint8_t write_buf[ata_sector_size];
-    uint8_t read_buf[ata_sector_size];
 
-    // باترن معروف وسهل التمييز: 0,1,2,...,255,0,1,2...
-    for (uint64_t i = 0; i < ata_sector_size; i++){
-        write_buf[i] = (uint8_t)(i & 0xFF);
-    }
-
-    // امسح buffer القراءة تحسبًا (تأكد إنه فعلاً انكتب من القرص، مش قيم قديمة بالذاكرة)
-    for (uint64_t i = 0; i < ata_sector_size; i++){
-        read_buf[i] = 0xFF;
-    }
-
-    uint32_t test_lba = 100; // أي LBA بعيد عن أي بيانات مهمة عندك حاليًا
-
-    int wr = ata_sector_write(test_lba, 1, write_buf);
-    debug_print("write result: ");
-    debug_put64((uint64_t)wr);
-    debug_putc('\n');
-
-    int rd = ata_sector_read(test_lba, 1, read_buf);
-    debug_print("read result: ");
-    debug_put64((uint64_t)rd);
-    debug_putc('\n');
-
-    int ok = 1;
-    for (uint64_t i = 0; i < ata_sector_size; i++){
-        if (write_buf[i] != read_buf[i]){
-            ok = 0;
-            debug_print("MISMATCH at byte ");
-            debug_put64(i);
-            debug_print(": wrote ");
-            debug_put64((uint64_t)write_buf[i]);
-            debug_print(" got ");
-            debug_put64((uint64_t)read_buf[i]);
-            debug_putc('\n');
-        }
-    }
-
-    if (ok){
-        debug_print("ATA READ/WRITE TEST: PASSED\n");
-    } else {
-        debug_print("ATA READ/WRITE TEST: FAILED\n");
+void echo_table(void){
+    for(;;){
+        debug_put64(current_dir_id);
+        debug_putc('\n');
+        //sleep_ms(1000);
+        //for (uint64_t i = 0; i < 11; i++){
+        //    id_to_path(i, path_174);
+        //    debug_put64(i);
+        //    debug_putc(' ');
+        //    debug_print(path_174);
+        //    debug_putc('\n');
+        //}
+        __asm__ volatile ("hlt");
     }
 }
+
 void kmain(void) {
     gdt_init();
     idt_init();
     pic_remap(); 
     pmm_init();
-    fs_init();
+    int fs_is_new = fs_init();    
 
     fb = fb_request.response->framebuffers[0];
 
@@ -1347,11 +1305,7 @@ void kmain(void) {
     uint64_t x = 1;
     uint64_t y = 1;
     uint32_t color = 0xFFFFFFFF;
-    
-    uint16_t himm[256];
-    int sso = ata_identify(himm);
-    test_ata_rw();
-    
+
     screen_cols = (fb->width / 8);
     screen_rows = (fb->height /8);
 
@@ -1372,12 +1326,14 @@ void kmain(void) {
             write(fb, xF, yF, color_ar[0], color_ar[1], " ");
         }
     }
-
+    
     recal_clt();
     global_crus_x = global_defualt_crus_x;
     write(fb, 0, global_crus_y, color_ar[0], color_ar[1], cmd_line_text);
-
-    make_the_tree();
+    
+    if (fs_is_new == 0){
+        make_the_tree();
+    }
 
     for (uint64_t i = 0; i < 11; i++){
         id_to_path(i, path_174);
@@ -1387,12 +1343,12 @@ void kmain(void) {
         debug_putc('\n');
     }
 
+    boot_commands();
+
     enter(command);
 
-    //creat_task_func(test_task_a, "task_a");
-    //creat_task_func(test_task_b, "task_b");
-    //creat_task_func(test_task_i, "task_i");
     creat_task_func(test_task_normal_shell, "shell");
+    creat_task_func(test_task_counter, "shell");
     current_task_id = 0;
 
     pit_init(100);

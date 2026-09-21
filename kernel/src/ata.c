@@ -23,25 +23,34 @@
 #define ATA_CMD_IDENTIFY 0xEC
 
 // بتات بحالة الـ STATUS register
-#define ATA_SR_BSY  0x80 // مشغول لسا
+#define ATA_SR_BSY  0x80 // مشغول
 #define ATA_SR_ERR  0x01 // خطأ
 #define ATA_SR_DRQ  0x08 // جاهز
 
 #define ATA_ERROR_TIMEOUT_LOOPS 100000
 
 int ata_sector_write(uint32_t lba, uint8_t sector_count, uint8_t *buffer){
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    uint64_t timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     outb(ATA_REG_HDDEVSEL, (uint8_t)(0xE0 | ((lba >> 24) & 0x0F)));
     outb(ATA_REG_SECCOUNT0, sector_count);
     outb(ATA_REG_LBA0, (uint8_t)lba);
     outb(ATA_REG_LBA1, (uint8_t)(lba >> 8));
     outb(ATA_REG_LBA2, (uint8_t)(lba >> 16));
     outb(ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     if ((inb(ATA_REG_STATUS) & ATA_SR_ERR) != 0){
         return inb(ATA_REG_ERROR);
     }
-    while((inb(ATA_REG_STATUS) & ATA_SR_DRQ) == 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_DRQ) == 0){
+        if (--timeout == 0) return -2;
+    }
     uint64_t buffer_write_buffer = 0;
     for (uint64_t i = 0; i < sector_count; i++){
         for (uint64_t i2 = 0; i2 < ata_sector_size/2; i2++){
@@ -50,27 +59,42 @@ int ata_sector_write(uint32_t lba, uint8_t sector_count, uint8_t *buffer){
             buffer_write_buffer += 2;
         }
     }
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+        timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     outb(ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     if ((inb(ATA_REG_STATUS) & ATA_SR_ERR) != 0){
         return inb(ATA_REG_ERROR);
     }
     return 0;
 }
 int ata_sector_read(uint32_t lba, uint8_t sector_count, uint8_t *buffer){
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    uint64_t timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     outb(ATA_REG_HDDEVSEL, (uint8_t)(0xE0 | ((lba >> 24) & 0x0F)));
     outb(ATA_REG_SECCOUNT0, sector_count);
     outb(ATA_REG_LBA0, (uint8_t)lba);
     outb(ATA_REG_LBA1, (uint8_t)(lba >> 8));
     outb(ATA_REG_LBA2, (uint8_t)(lba >> 16));
     outb(ATA_REG_COMMAND, ATA_CMD_READ_PIO);
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     if ((inb(ATA_REG_STATUS) & ATA_SR_ERR) != 0){
         return inb(ATA_REG_ERROR);
     }
-    while((inb(ATA_REG_STATUS) & ATA_SR_DRQ) == 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_DRQ) == 0){
+        if (--timeout == 0) return -2;
+    }
     uint64_t buffer_read_buffer = 0;
     for (uint64_t i = 0; i < sector_count; i++){
         for (uint64_t i2 = 0; i2 < ata_sector_size/2; i2++){
@@ -80,9 +104,15 @@ int ata_sector_read(uint32_t lba, uint8_t sector_count, uint8_t *buffer){
             buffer_read_buffer += 2;
         }
     }
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     outb(ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
-    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){}
+    timeout = ATA_ERROR_TIMEOUT_LOOPS;
+    while((inb(ATA_REG_STATUS) & ATA_SR_BSY) != 0){
+        if (--timeout == 0) return -2;
+    }
     if ((inb(ATA_REG_STATUS) & ATA_SR_ERR) != 0){
         return inb(ATA_REG_ERROR);
     }
