@@ -16,6 +16,10 @@ int fs_mk_dir(const char *path, uint64_t parent_id);
 int fs_rm_file(const char *path, uint64_t parent_id);
 int fs_rm_dir(const char *path, uint64_t parent_id);
 
+int fs_copy_file(const char *src, const char *dst, uint64_t current_dir_id);
+
+int fs_test_file(char *path, char *path2, uint64_t current_dir_id);
+
 uint64_t path_to_id(char *path, uint64_t current_dir_id);
 int id_to_path(uint64_t id, char *buffer);
 char *path_resolve(char *path);

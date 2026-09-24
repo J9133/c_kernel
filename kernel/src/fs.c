@@ -974,6 +974,8 @@ int fs_read_file(const char *path, uint8_t *buffer, uint64_t max_size, uint64_t 
     return 1;
 }
 
+#define fs_copy_max_bytes 8192
+
 static int find_entry_by_id(uint64_t id, struct fs_file_entry *out, uint64_t *out_sector, uint64_t *out_slot){
     if (id == 0 || id == fs_not_found){
         return 1;
@@ -1404,6 +1406,56 @@ static int fs_format(void){
     }
 
     return fs_write_superblock();
+}
+
+
+int fs_copy_file(const char *src, const char *dst, uint64_t current_dir_id){
+    uint64_t src_id = path_to_id(path_to_abs((char *)src, current_dir_id), current_dir_id);
+    if (src_id == fs_not_found || src_id == 0){
+        return 1;
+    }
+    struct fs_file_entry e;
+    if (find_entry_by_id(src_id, &e, 0, 0) != 0){
+        return 1;
+    }
+    if (e.type != 2){
+        return 2;
+    }
+    if (e.size > fs_copy_max_bytes){
+        return 3;
+    }
+
+    uint64_t dst_id = path_to_id(path_to_abs((char *)dst, current_dir_id), current_dir_id);
+    if (dst_id == src_id){
+        return 0;
+    }
+    if (dst_id == fs_not_found){
+        if (fs_mk_file(dst, current_dir_id) != 0){
+            return 1;
+        }
+    }else{
+        struct fs_file_entry d;
+        if (dst_id == 0 || find_entry_by_id(dst_id, &d, 0, 0) != 0 || d.type != 2){
+            return 2;
+        }
+    }
+
+    uint8_t buf[fs_copy_max_bytes + 1];
+    for (uint64_t i = 0; i < e.size + 1; i++){ buf[i] = 0x00; }
+    if (fs_read_file(src, buf, e.size + 1, current_dir_id) != 0){
+        return 1;
+    }
+    return fs_write_file(dst, buf, e.size, current_dir_id);
+}
+
+int fs_test_file(char *path, char *path2, uint64_t current_dir_id){
+    uint8_t this_test_buffer[2];
+    int stat = fs_read_file(path, this_test_buffer, 1, current_dir_id);
+    if (stat == 1){
+        fs_write_file(path2, "0", 2, current_dir_id);
+    }else{
+        fs_write_file(path2, "1", 2, current_dir_id);
+    }
 }
 
 int fs_init(){

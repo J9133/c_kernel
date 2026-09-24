@@ -16,7 +16,6 @@ static inline void io_wait(void) {
 }
 
 void pic_remap(void) {
-    // ابدأ عملية إعادة التهيئة (initialization) لكلا الـ PIC
     outb(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
     io_wait();
     outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);

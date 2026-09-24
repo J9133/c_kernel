@@ -1,0 +1,105 @@
+
+write /input/input_c 1
+test /var/rand_2 /games/coin/ok
+if /var/rand_2 /input/input_c
+else mkdir /games
+else mkdir /games/coin
+else mk /games/coin/px
+else mk /games/coin/py
+else mk /games/coin/cx
+else mk /games/coin/cy
+else mk /games/coin/kw
+else mk /games/coin/ks
+else mk /games/coin/ka
+else mk /games/coin/kd
+else mk /games/coin/kq
+else mk /games/coin/mu
+else mk /games/coin/md
+else mk /games/coin/ml
+else mk /games/coin/mr
+else mk /games/coin/mq
+else mk /games/coin/one
+else mk /games/coin/chk
+else mk /games/coin/got
+else mk /games/coin/maxx
+else mk /games/coin/miny
+else mk /games/coin/maxy
+else mk /games/coin/main
+else mk /games/coin/keys
+else mk /games/coin/init
+else mk /games/coin/score
+else mk /games/coin/start
+else write /games/coin/cx 5
+else write /games/coin/cy 6
+else write /games/coin/kw w
+else write /games/coin/ks s
+else write /games/coin/ka a
+else write /games/coin/kd d
+else write /games/coin/kq q
+else write /games/coin/one 1
+else write /games/coin/px 15
+else write /games/coin/py 10
+else write /games/coin/miny 4
+else write /games/coin/maxx 30
+else write /games/coin/maxy 15
+else write /games/coin/score 0
+else wadd /games/coin/mq clear
+else wadd /games/coin/main input
+else wadd /games/coin/start clear
+else wadd /games/coin/init se 0 0 SCORE:
+else wadd /games/coin/start sh /games/coin/init
+else wadd /games/coin/start sh /games/coin/main
+else wadd /games/coin/init write /games/coin/cx 5
+else wadd /games/coin/init write /games/coin/cy 6
+else wadd /games/coin/init write /games/coin/px 15
+else wadd /games/coin/init write /games/coin/py 10
+else wadd /games/coin/init se 0 18 WASD=move_Q=quit
+else wadd /games/coin/init write /games/coin/score 0
+else wadd /games/coin/ml if /games/coin/px /games/coin/one
+else wadd /games/coin/chk if /games/coin/py /games/coin/cy
+else wadd /games/coin/keys if /input/input_c /games/coin/kw
+else wadd /games/coin/keys fi sh /games/coin/mu - - - - - -
+else wadd /games/coin/keys if /input/input_c /games/coin/ks
+else wadd /games/coin/keys fi sh /games/coin/md - - - - - -
+else wadd /games/coin/keys if /input/input_c /games/coin/ka
+else wadd /games/coin/keys fi sh /games/coin/ml - - - - - -
+else wadd /games/coin/keys if /input/input_c /games/coin/kd
+else wadd /games/coin/keys fi sh /games/coin/mr - - - - - -
+else wadd /games/coin/mu if /games/coin/py /games/coin/miny
+else wadd /games/coin/md if /games/coin/py /games/coin/maxy
+else wadd /games/coin/mr if /games/coin/px /games/coin/maxx
+else wadd /games/coin/chk fi sh /games/coin/got - - - - - -
+else wadd /games/coin/main se /games/coin/px /games/coin/py . f
+else wadd /games/coin/main sh /games/coin/keys - - - - - - - - -
+else wadd /games/coin/main if /games/coin/px /games/coin/cx - - -
+else wadd /games/coin/main fi sh /games/coin/chk - - - - - - - - -
+else wadd /games/coin/init se 0 3 +------------------------------+
+else wadd /games/coin/init se 0 4 |..............................|
+else wadd /games/coin/init se 0 5 |..............................|
+else wadd /games/coin/init se 0 6 |..............................|
+else wadd /games/coin/init se 0 7 |..............................|
+else wadd /games/coin/init se 0 8 |..............................|
+else wadd /games/coin/init se 0 9 |..............................|
+else wadd /games/coin/main se /games/coin/cx /games/coin/cy $ f - -
+else wadd /games/coin/main se /games/coin/px /games/coin/py @ f - -
+else wadd /games/coin/main se 7 0 /games/coin/score i - - - - - - -
+else wadd /games/coin/main if /input/input_c /games/coin/kq - - - -
+else wadd /games/coin/main fi sh /games/coin/mq - - - - - - - - - -
+else wadd /games/coin/main else sh /games/coin/main - - - - - - - -
+else wadd /games/coin/init se 0 10 |..............................|
+else wadd /games/coin/init se 0 11 |..............................|
+else wadd /games/coin/init se 0 12 |..............................|
+else wadd /games/coin/init se 0 13 |..............................|
+else wadd /games/coin/init se 0 14 |..............................|
+else wadd /games/coin/init se 0 15 |..............................|
+else wadd /games/coin/init se 0 16 +------------------------------+
+else wadd /games/coin/mu else math /games/coin/py /games/coin/py - /games/coin/one f
+else wadd /games/coin/md else math /games/coin/py /games/coin/py + /games/coin/one f
+else wadd /games/coin/ml else math /games/coin/px /games/coin/px - /games/coin/one f
+else wadd /games/coin/mr else math /games/coin/px /games/coin/px + /games/coin/one f
+else wadd /games/coin/got math /games/coin/score /games/coin/score + /games/coin/one f
+else wadd /games/coin/got rand 30 - - - - - - - - - - - - - - - - - - - - - - - - - - -
+else wadd /games/coin/got math /games/coin/cx /var/rand_2 + /games/coin/one f - - - - -
+else wadd /games/coin/got rand 12 - - - - - - - - - - - - - - - - - - - - - - - - - - -
+else wadd /games/coin/got math /games/coin/cy /var/rand_2 + /games/coin/miny f - - - - -
+else mk /games/coin/ok - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
